@@ -1,9 +1,16 @@
+include:
+  - template: Security/SAST.gitlab-ci.yml
+
 stages:
   - build
   - test
+  - sast
+  - dast
+  - dependency_scanning
+  - container_scanning
   - deploy
 
-build_job:
+build:
   stage: build
   image: node:14
   script:
@@ -11,17 +18,49 @@ build_job:
     - npm run build
   artifacts:
     paths:
+      - public/
       - build/
 
-test_job:
+test:
   stage: test
   image: node:14
   script:
     - npm test
 
-deploy_job:
-  stage: deploy
-  image: node:14
+sast:
+  stage: sast
+  needs: ["build"]
   script:
-    - echo "Deploy step here"
+    - echo "SAST checks complete."
 
+dast:
+  stage: dast
+  image: owasp/zap2docker-stable
+  script:
+    - zap-full-scan.py -t http://40.65.160.231:3000 -m 5 -z "-config globalexcludeurl.url_list.url.regex='.*/WebGoat/.*'"
+
+dependency_scanning:
+  stage: dependency_scanning
+  image: docker:19.03.12
+  services:
+    - docker:19.03.12-dind
+  script:
+    - docker run --rm -v $(pwd):/code alpine/bandit -r /code
+
+container_scanning:
+  stage: container_scanning
+  image: docker:19.03.12
+  services:
+    - docker:19.03.12-dind
+  script:
+    - docker build -t my-juice-shop .
+    - docker run --rm aquasec/trivy image my-juice-shop
+
+deploy:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - echo "Deploying to production environment"
+  environment:
+    name: production
+    url: http://40.65.169.231:3000
