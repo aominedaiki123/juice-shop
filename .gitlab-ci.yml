@@ -1,7 +1,27 @@
-include:
-  - template: Auto-DevOps.gitlab-ci.yml
+stages:
+  - build
+  - test
+  - deploy
 
-variables:
-  SAST_EXCLUDED_PATHS: "frontend/src/assets/private/**"
-  TEST_DISABLED: "true"
-  DAST_DISABLED: "true"
+build_job:
+  stage: build
+  image: node:14
+  script:
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - build/
+
+test_job:
+  stage: test
+  image: node:14
+  script:
+    - npm test
+
+deploy_job:
+  stage: deploy
+  image: node:14
+  script:
+    - echo "Deploy step here"
+
